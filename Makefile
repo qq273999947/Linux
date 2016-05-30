@@ -1,5 +1,5 @@
 test:test.o
-	gcc test.o -o test
+	gcc -o test.o test
 test.o:test.s
 	gcc -c test.s -o test.o
 test.s:test.i
