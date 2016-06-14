@@ -10,7 +10,7 @@ int main()
     pid_t id = fork();
     if(id == -1){
         printf("fork error! return code is:%d\n",errno);
-        return -1;
+        exit(2);
     }
     else if(id == 0){
         printf("child pid is: %d\n",getpid());
