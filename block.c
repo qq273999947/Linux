@@ -20,7 +20,7 @@ int main()
     }
     else{
         int status = 0;
-        pid_t ret =waitpid(-1,&status,0);//Non-blocking waiting for 5S
+        pid_t ret =waitpid(-1,&status,0);//blocking waiting for 5S
         printf("this is test for wait\n");
         if(WIFEXITED(status) && ret == pid){
            printf("wait child 5S success,child return code is:%d.\n",WEXITSTATUS(status));
