@@ -71,7 +71,6 @@ int main()
         _pid_list[i] = _DEFAULT_PID_;
     }
     if( creat_proc(_pid_list, sizeof(_pid_list)/sizeof(_pid_list[0])) == 0  ){
-        //watch out!!! sizeof*/ sizeof*[0] !!!!
         printf("%s :create all proc success!\n",__FUNCTION__);
     }
     else{    
