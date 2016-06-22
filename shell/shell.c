@@ -8,7 +8,8 @@ int main()
 {
     while(1)
     {
-      printf("[enen@shiwo shell]#");
+      //printf("[enen@shiwo shell]#");
+      printf("[%s@localhost shell$", getlogin());
       fflush(stdout);
 
       char buff[1024];
