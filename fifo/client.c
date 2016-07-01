@@ -3,6 +3,7 @@
 #include<sys/stat.h>
 #include<unistd.h>
 #include<fcntl.h>
+#include<errno.h>
 #include<string.h>
 
 #define _PATH_ "./file.tmp"
@@ -10,15 +11,15 @@
 
 int main()
 {
-    int fd = open(_PATH_,O_RDONLY);
+    int fd = open(_PATH_,O_RDONLY,0);
     if(fd < 0){
-        printf("open file failed!\n");
+        printf("open file failed!:%s\n",strerror(errno));
         return 1;
     }
     char buf[_SIZE_];
-    memset(buf,'\0',sizeof(buf));
     while(1){
-        int ret = read(fd,buf,sizeof(buf));
+        memset(buf,'\0',sizeof(buf));
+        int ret = read(fd,buf,sizeof(buf)-1);
         if(ret <= 0){
             printf("read file failed!\n");
             break;
