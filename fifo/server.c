@@ -22,7 +22,7 @@ int main()
     }
     char buf[_SIZE_];
     while(1){
-        printf("client Enter:");
+        printf("Server Enter:");
         fflush(stdout);
         memset(buf,'\0',sizeof(buf));
         scanf("%s",buf);
