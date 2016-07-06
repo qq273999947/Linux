@@ -9,7 +9,7 @@ static int com_creat_queue(int flags)
     }
     int msg_id = msgget(key,flags);
     if(msg_id < 0){
-        perror("msgget");
+        printf("%d:%s\n",errno,strerror(errno));
         return -2;
     }
     return msg_id;
@@ -39,11 +39,11 @@ int send_msg(int msg_id,int who,char *msg)
 int recv_msg(int msg_id,int want,char out[],int out_len)
 {
     struct msgbuf _buf;
-    memsett(&_buf,'\0',sizeof(_buf));
+    memset(&_buf,'\0',sizeof(_buf));
     int ret = msgrcv(msg_id,&_buf,sizeof(_buf.mtext),want,0);
     if(ret <= -1)
     {
-        perror("msgrcv");
+        printf("%d:%s\n",errno,strerror(errno));
         return -1;
     }
     memset(out,'\0',out_len);
@@ -54,7 +54,7 @@ int delete_queue(int msg_id)
 {
     int ret = msgctl(msg_id,IPC_RMID,NULL);
     if(ret < 0){
-        perror("msgctl");
+        printf("%d:%s\n",errno,strerror(errno));
         return -3;
     }
     return 0;

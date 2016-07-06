@@ -9,10 +9,10 @@ int client()
         printf("Please Enter : ");
         fflush(stdout);
         memset(buf,'\0',sizeof(buf));
-        gets(buf);
+        scanf("%s",buf);
         send_msg(msg_id,CLIENT_TYPE,buf);
         if(strncasecmp(buf,"quit",4) == 0){
-            printf("quit\n");
+            printf("client quit\n");
             return 0;
         }
         sleep(2);
@@ -23,7 +23,7 @@ int client()
         }
     }
 }
-int mian()
+int main()
 {
     client();
     return 0;

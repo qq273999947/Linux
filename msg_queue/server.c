@@ -1,4 +1,4 @@
-#include<common.h>
+#include"common.h"
 
 int server()
 {
@@ -15,7 +15,7 @@ int server()
         int ret = recv_msg(msg_id,CLIENT_TYPE,buf,sizeof(buf));
         if(ret == 0){
             if(strncasecmp(buf,"quit",4) == 0){
-                printf("client leave\n");
+                printf("client leave!\n");
                 break;
             }
             printf("client say : %s\n",buf);
@@ -23,8 +23,8 @@ int server()
         printf("Please Enter :");
         fflush(stdout);
         memset(buf,'\0',sizeof(buf));
-        gets(buf);
-        send_mag(msg_id,SERVER_TYPE,buf);
+        scanf("%s",buf);
+        send_msg(msg_id,SERVER_TYPE,buf);
     }
     return delete_queue(msg_id);
 }

@@ -11,14 +11,14 @@
 #define _PROJ_ID_ 0x6666
 #define _SIZE_ 1024
 
-#define SERVER_TYPE 2
 #define CLIENT_TYPE 1
+#define SERVER_TYPE 2
 
 struct msgbuf
 {
     long mtype;
     char mtext[_SIZE_];
-}
+};
 
 int creat_queue();
 int get_queue();
