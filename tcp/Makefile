@@ -1,9 +1,9 @@
 .PHONY:all
 all:client server
 client:client.c
-	gcc -o $@ $^
+	gcc -o $@ $^ -lpthread
 server:server.c
-	gcc -o $@ $^
+	gcc -o $@ $^ -lpthread
 .PHONY:clean
 clean:
 	rm -f client server
