@@ -3,7 +3,7 @@ BIN=httpd
 SRC=httpd.c
 OBJ=$(SRC:.c=.o)
 CC=gcc
-FLAGS=-D_DEBUG_
+FLAGS=-g #-D_DEBUG_
 LDFLAGS=-lpthread
 
 $(BIN):$(SRC)

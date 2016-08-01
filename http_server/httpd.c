@@ -5,6 +5,10 @@
 #include<sys/types.h>
 #include<pthread.h>
 #include<string.h>
+#include<sys/sendfile.h>
+#include<sys/stat.h>
+#include<unistd.h>
+#include<fcntl.h>
 
 #define _SIZE_ 1024
 
@@ -66,6 +70,116 @@ static int get_line(int sock,char buf[],int len)
     return i;
 }
 
+void echo_errno(int sock)
+{
+    
+}
+static int echo_www(int sock,const char* path,ssize_t size)
+{
+    int fd = open(path,O_RDONLY);
+    if(fd < 0){
+        echo_errno(sock);
+        return -1;
+    }
+    char buf[_SIZE_];
+    sprintf(buf,"HTTP/1.0 200 OK\r\n\r\n");
+    send(sock,buf,strlen(buf),0);
+
+    if(sendfile(sock,fd,NULL,size) < 0){
+        echo_errno(sock);
+        return -2;
+    }
+    close(fd);
+}
+static void clear_head(int sock)
+{ 
+    int ret = 0;
+    char buf[_SIZE_];
+    do{
+        ret =  get_line(sock,buf,sizeof(buf));
+    }while(ret > 0 && strcmp(buf,"\n"));
+}
+
+static int execut_cgi(int sock,const char *path,const char *method,const char* query_string)
+{
+    int conten_len = -1;//正文长度
+
+    //cgi
+    int cgi_input[2];
+    int cgi_output[2];
+    char buf[_SIZE_];
+    if(strcasecmp(method,"GET") == 0){
+        clear_head(sock);
+    }else{//POST
+          int ret = 0;
+          memset(buf,'\0',sizeof(buf));
+          do{
+              ret = get_line(sock,buf,sizeof(buf));
+              if(ret > 0 && strncasecmp(buf,"Content-Lenghth: ",16) == 0){
+                  conten_len = atoi(&buf[16]);
+              }
+          }while((ret > 0) && strcmp(buf,"\n") != 0);
+          if(conten_len == -1){
+              echo_errno(sock);
+              return -2;
+          }
+    }
+    sprintf(buf,"HEEP/1.0 200 OK\r\n\r\n");
+    send(sock,buf,strlen(buf),0);
+
+    //创建子进程执行cgi脚本
+    if(pipe(cgi_input) < 0){
+        echo_errno(sock);
+        return -3;
+    }
+
+    if(pipe(cgi_output) < 0){
+        echo_errno(sock);
+        return -4; 
+    }
+
+    pid_t id = fork();
+    if(id == 0){//child输入
+          close(cgi_input[1]);
+          close(cgi_output[0]);
+
+          dup2(cgi_input[0],0);//先关0，再复制cgi的0到0
+          dup2(cgi_output[1],1);
+          sprintf(buf,"REQUEST_METHOD=%s",method);
+          putenv(buf);
+
+         if(strcasecmp(method,"GET") == 0){
+            sprintf(buf,"QUERY_STRING=%d",query_string);
+             putenv(buf);
+         }else{
+             sprintf(buf,"CONTENT_LENTGHT=%d",conten_len);
+             putenv(buf);
+         }
+          execl(path,path,NULL);
+          exit(1);
+    }else{//father输出
+          close(cgi_input[0]);
+          clear(cgi_output[1]);
+
+          int i = 0;
+          char c = '\0';
+          if( strcasecmp(method,"POST") == 0 ){
+              for(;i < conten_len;++i){
+                  recv(sock,&c,1,0);
+                  write(cgi_input[1],&c,i);
+              }
+          }
+
+          while( read(cgi_output[0],&c,1) > 0 ){
+              send(sock,&c,1,0);
+          }
+
+          waitpid(id,NULL,0);
+
+          close(cgi_input[1]);
+          close(cgi_output[0]);
+    }
+}
 static void* accept_request(void *arg)
 {
     int sock = (int)arg;
@@ -76,6 +190,8 @@ static void* accept_request(void *arg)
         get_line(sock,buf,_SIZE_);
         printf("%s",buf);
     }while(ret > 0 && strcmp(buf,"\n"));
+    //close(sock);
+    return NULL;
 #endif
 
     char method[_SIZE_/10];
@@ -105,7 +221,7 @@ static void* accept_request(void *arg)
     //printf("method : %s\n",method);
     
     //2.check method
-    if(strcmp(method,"GET") != 0 && strcmp(method,"POST") != 0){
+    if(strcasecmp(method,"GET") != 0 && strcasecmp(method,"POST") != 0){
         //echo_errno(sock);
         return (void*)-2;
     }
@@ -119,23 +235,29 @@ static void* accept_request(void *arg)
     i = 0;
     while((!isspace(buf[j])) && (i < sizeof(url) - 1) && (j < sizeof(buf))){
         url[i] = buf[j];
-        ++i;
-        ++j;
+        ++i,++j;
     }
     printf("method : %s , url_path : %s\n",method,url);
+
 
     char*start = url;
     char* query_string = 0;
     int cgi = 0;
-    while(*start != '\0')
-    {
-        if(*start == '?'){
-            cgi = 1;
-            *start = '\0';
-            query_string = start+1;
-            break;
+
+    if(strcasecmp(method,"POST") == 0){
+        cgi = 1;
+    }
+    if(strcasecmp(method,"GET") == 0){
+        query_string = url;
+        while(*query_string != '\0' && query_string != '?'){
+            query_string++;
         }
-        start++;
+    }
+
+    if(*query_string == '?'){
+        cgi = 1;
+        *query_string = '\0';
+        query_string++;
     }
 
     sprintf(path,"htdoc/%s",url);
@@ -143,7 +265,29 @@ static void* accept_request(void *arg)
     {
         strcat(path,"index.html");
     }
-    printf("path: %s\n",path);
+
+   struct stat st;
+   if(stat(path,&st) < 0){//defalut->htdoc/index.html
+       echo_errno(sock);
+       return (void*)-3;       
+    }else{
+           if(S_ISDIR(st.st_mode) ){
+             strcpy(path,"htdoc/index.html");
+           }else if( (st.st_mode & S_IXUSR ) || (st.st_mode & S_IXGRP) || (st.st_mode & S_IXOTH)){
+                   cgi = 1;
+           }else{
+           }
+    }
+
+    if(cgi){ //cgi
+        execut_cgi(sock,path,method,query_string);
+    }else{
+        clear_head(sock);
+        echo_www(sock,path,st.st_size);
+    }
+    //printf("path: %s\n",path);
+    
+    close(sock);//无连接，处理完立即关掉
     return (void*)0;
 }
 
