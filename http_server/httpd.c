@@ -70,9 +70,42 @@ static int get_line(int sock,char buf[],int len)
     return i;
 }
 
-void echo_errno(int sock)
+static void bad_request(int sock)
 {
-    
+    char buf[1024];
+    sprintf(buf,"HTTP/1.0 400 BAD REQUEST\r\n");
+    send(sock,buf,strlen(buf),0);
+    sprintf(buf,"Content-type: text/html\r\n");
+    send(sock,buf,strlen(buf),0);
+    sprintf(buf,"\r\n");
+    send(sock,buf,strlen(buf),0);  
+    sprintf(buf,"<html><br><p>your enter message is a bad request</p></br></html>\r\n");
+    sprintf(sock,buf,strlen(buf),0);
+}
+
+static void not_found(int sock)
+{
+    char buf[1024];
+    sprintf(buf,"HTTP/1.0 404 NOT FOUND\r\n");
+    send(sock,buf,strlen(buf),0);
+    sprintf(buf,"Content-type: text/html\r\n");
+    send(sock,buf,strlen(buf),0);
+    sprintf(buf,"\r\n");
+    send(sock,buf,strlen(buf),0);  
+    sprintf(buf,"<html><br><p>your enter message is a not found</p></br></html>\r\n");
+    sprintf(sock,buf,strlen(buf),0);
+}
+static void echo_errno(int sock,int num)
+{
+    switch(num){
+        case 404:
+            not_found(sock);
+            break;
+        case 400:
+            bad_request(sock);
+            break;
+    }
+    close(sock);
 }
 static int echo_www(int sock,const char* path,ssize_t size)
 {
@@ -82,6 +115,7 @@ static int echo_www(int sock,const char* path,ssize_t size)
         return -1;
     }
     char buf[_SIZE_];
+    memset(buf,'\0',sizeof(buf));
     sprintf(buf,"HTTP/1.0 200 OK\r\n\r\n");
     send(sock,buf,strlen(buf),0);
 
@@ -104,10 +138,8 @@ static int execut_cgi(int sock,const char *path,const char *method,const char* q
 {
     int conten_len = -1;//正文长度
 
-    //cgi
-    int cgi_input[2];
-    int cgi_output[2];
     char buf[_SIZE_];
+
     if(strcasecmp(method,"GET") == 0){
         clear_head(sock);
     }else{//POST
@@ -124,8 +156,14 @@ static int execut_cgi(int sock,const char *path,const char *method,const char* q
               return -2;
           }
     }
+
+    //cgi
+    printf("Content_Length:%d\n",content_len);
     sprintf(buf,"HEEP/1.0 200 OK\r\n\r\n");
     send(sock,buf,strlen(buf),0);
+
+    int cgi_input[2];
+    int cgi_output[2];
 
     //创建子进程执行cgi脚本
     if(pipe(cgi_input) < 0){
@@ -138,6 +176,13 @@ static int execut_cgi(int sock,const char *path,const char *method,const char* q
         return -4; 
     }
 
+    char query_env[_SIZE_];
+    char method_env[_SIZE_];
+    char content_len_env[_SIZE_];
+    memset(method_env, '\0', sizeof(method_env));
+    memset(query_env, '\0', sizeof(query_env));
+    memset(content_len_env, '\0', sizeof(content_len_env));
+
     pid_t id = fork();
     if(id == 0){//child输入
           close(cgi_input[1]);
@@ -145,21 +190,22 @@ static int execut_cgi(int sock,const char *path,const char *method,const char* q
 
           dup2(cgi_input[0],0);//先关0，再复制cgi的0到0
           dup2(cgi_output[1],1);
-          sprintf(buf,"REQUEST_METHOD=%s",method);
-          putenv(buf);
+          sprintf(method_env,"REQUEST_METHOD=%s",method);
+          putenv(method_env);
 
          if(strcasecmp(method,"GET") == 0){
-            sprintf(buf,"QUERY_STRING=%d",query_string);
-             putenv(buf);
+            sprintf(query_env,"QUERY_STRING=%d",query_string);
+            putenv(query_env);
          }else{
-             sprintf(buf,"CONTENT_LENTGHT=%d",conten_len);
-             putenv(buf);
+             //POST
+             sprintf(content_len_env,"CONTENT_LENTGHT=%d",conten_len);
+             putenv(content_len_env);
          }
           execl(path,path,NULL);
           exit(1);
     }else{//father输出
           close(cgi_input[0]);
-          clear(cgi_output[1]);
+          close(cgi_output[1]);
 
           int i = 0;
           char c = '\0';
