@@ -2,8 +2,12 @@
 #include<stdlib.h>
 #include<string.h>
 
-void math(char *arg)
+void math(char *arg)//实现一个相加的功能。
 {
+    if(arg == NULL)
+    {
+        return;
+    }
     char *end = &arg[strlen(arg) - 1];
     char *arr[64];
     int i = 0;
@@ -12,7 +16,7 @@ void math(char *arg)
             arr[i++] = end+1;
         }
         if(*end == '&'){
-            *end = '\0';
+            *end ='\0';
         }
         end--;
     }
@@ -28,26 +32,30 @@ void math(char *arg)
         data = atoi(arr[i++]);
         sum += data;
     }
+    
+    printf(" data1 + data2 = %d",sum);
 
     printf("</body>");
     printf("</html>");
 }
+
 int main()
 {
     char method[1024];
     char arg[1024];
 
     memset(method,'\0',sizeof(method));
-    memset(atg,'\0',sizeof(arg));
+    memset(arg,'\0',sizeof(arg));
 
     int content_len = -1;
     if(getenv("REQUEST_METHOD")){
         strcpy(method,getenv("REQUEST_METHOD"));
+        printf("method: %s\n",method);
     }
 
-    if(strcasecmp(methon,"GET") == 0){
+    if(strcasecmp(method,"GET") == 0){
         if(getenv("QUERY_STRING")){
-            strcpy(arg,getenv(QUERY_STRING));
+            strcpy(arg,getenv("QUERY_STRING"));
         }
     }
 
@@ -60,9 +68,7 @@ int main()
             }
             arg[i] = '\0';
         }
-        else{
-            
-                }
+        printf("arg: %s\n",arg);
         math(arg);
     }
     return 0;
